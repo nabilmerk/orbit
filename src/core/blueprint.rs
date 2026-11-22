@@ -212,6 +212,11 @@ impl<'a, 'b> Blueprint<'a, 'b> {
         self.with_std = true;
     }
 
+    /// The entries collected so far, in order.
+    pub fn steps(&self) -> &Vec<Entry<'a, 'b>> {
+        &self.steps
+    }
+
     pub fn get_filename(&self) -> String {
         String::from(match self.scheme {
             Scheme::Tsv => "blueprint.tsv",

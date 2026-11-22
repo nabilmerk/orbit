@@ -46,6 +46,19 @@ grep -q "ALLHDL	demo4.*root_unit\.vhd	93$" target/probe-cfs/blueprint.tsv || fai
 $(cat target/probe-cfs/blueprint.tsv)"
 cd ../..
 
+# --- case A3: a custom fileset REPLACES the closure rows it matches ---
+# (the probed semantics: ghdl's timestamp obsoletion makes a duplicate
+# row fatal -- the same file analyzed twice into one library re-stamps
+# it and poisons every dependent)
+cd declared/root
+orbit build --force --target probe-cfs --plan tsv > cfs2.out 2> cfs2.err || fail "custom-fileset build failed:
+$(cat cfs2.err)"
+ROWS=$(wc -l < target/probe-cfs/blueprint.tsv)
+DUPS=$(cut -f3 target/probe-cfs/blueprint.tsv | sort | uniq -d | wc -l)
+[ "$DUPS" -eq 0 ] || fail "the blueprint carries $DUPS duplicate path(s) across its $ROWS rows:
+$(cat target/probe-cfs/blueprint.tsv)"
+cd ../..
+
 # --- case C2: a strict target refuses the mixed-std graph at the CLI ---
 cd declared/root
 if orbit build --force --target strict --plan tsv > strict.out 2> strict.err; then
