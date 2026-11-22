@@ -85,6 +85,14 @@ impl ProjectKey {
     }
 }
 
+/// The duplicate-error witness rank: the working project's own unit
+/// ranks first (the honest "conflicts with direct dependency" witness),
+/// then the smallest (library, filepath) so the same collision always
+/// names the same file regardless of hash order.
+fn witness_rank(root_owner: bool, library: &str, filepath: &str) -> (bool, String, String) {
+    (!root_owner, String::from(library), String::from(filepath))
+}
+
 /// Constructs a graph at the project-level.
 ///
 /// Note: this function performs no reduction.
@@ -121,6 +129,12 @@ fn graph_project<'a>(
         .map(|(k, v)| ((root.get_hdl_library(), k), (v, root.get_man().get_project().into_project_id_spec())))
         .collect();
 
+    // the working project's identity: who owns an entry decides the
+    // duplicate-error attribution -- a clash against the root's own unit
+    // is "direct", a clash between two dependency projects is "local",
+    // whether the clashing dep is the root's direct child or not
+    let root_spec = root.get_man().get_project().into_project_id_spec();
+
     // Use this map to track if a parent is a relative dependency to chain relative dependencies together.
     let mut relative_map: HashMap<usize, bool> = HashMap::new();
     relative_map.insert(t, true);
@@ -156,30 +170,37 @@ fn graph_project<'a>(
                                     .find(|(key, _)| unit_map.contains_key(&(lib.clone(), (**key).clone())))
                                 {
                                     let dupe_name = dupe.0;
-                                    let dupe = unit_map.get(&(lib.clone(), dupe_name.clone())).unwrap();
-                                    if is_root == true {
+                                    let entry = unit_map
+                                        .get(&(lib.clone(), dupe_name.clone()))
+                                        .unwrap();
+                                    let (dupe_unit, dupe_owner) = (&entry.0, &entry.1);
+                                    if dupe_owner == &root_spec {
+                                        // the working project's own unit: the new
+                                        // dependency is the conflicting one
                                         return Err(CodeFault(
                                             None,
                                             Box::new(HdlNamingError::DuplicateAcrossDirect(
-                                                dupe.0.get_name().to_string(),
+                                                dupe_unit.get_name().to_string(),
                                                 relative_prj
                                                     .get_man()
                                                     .get_project()
                                                     .into_project_id_spec(),
                                                 PathBuf::from(
-                                                    dupe.0.get_source_files().first().unwrap(),
+                                                    dupe_unit.get_source_files().first().unwrap(),
                                                 ),
-                                                dupe.0.get_position().clone(),
+                                                dupe_unit.get_position().clone(),
                                                 is_root,
                                             )),
                                         ))?;
                                     } else {
+                                        // two dependency projects: the clash is
+                                        // local, whoever their parent is
                                         let local_src = units.get(dupe_name).unwrap();
                                         return Err(CodeFault(
                                             None,
                                             Box::new(HdlNamingError::DuplicateAcrossLocal(
                                                 local_src.get_name().to_string(),
-                                                dupe.1.clone(),
+                                                dupe_owner.clone(),
                                                 PathBuf::from(
                                                     local_src.get_source_files().first().unwrap(),
                                                 ),
@@ -262,9 +283,23 @@ fn graph_project<'a>(
                                                 unit_map.keys().any(|(_, u)| u == *key)
                                             })
                                         {
+                                            // deterministic witness: the root's
+                                            // own unit first, then the smallest
+                                            // (library, filepath) -- never hash order
                                             let dupe = unit_map
                                                 .iter()
-                                                .find(|((_, u), _)| u == dupe.0)
+                                                .filter(|((_, u), _)| u == dupe.0)
+                                                .min_by_key(|((lib, _), (unit, owner))| {
+                                                    witness_rank(
+                                                        owner == &root_spec,
+                                                        &lib.to_string(),
+                                                        &unit
+                                                            .get_source_files()
+                                                            .first()
+                                                            .cloned()
+                                                            .unwrap_or_default(),
+                                                    )
+                                                })
                                                 .unwrap()
                                                 .1;
                                             if is_root == true {
@@ -792,5 +827,27 @@ impl<'a> ProjectFileNode<'a> {
     /// Get the direct dependency filepaths.
     pub fn get_dep_files(&self) -> &Vec<String> {
         &self.dep_files
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    /// The duplicate-error witness rank: the working project's own unit
+    /// ranks first (the honest "conflicts with direct dependency"
+    /// witness), then the smallest (library, filepath) so the same
+    /// collision always names the same file regardless of hash order.
+    #[test]
+    fn the_witness_rank_prefers_the_root_then_sorts_deterministically() {
+        let root_first = witness_rank(true, "zlib", "./z.vhd");
+        let dep_after = witness_rank(false, "alib", "./a.vhd");
+        assert!(
+            root_first < dep_after,
+            "the root-owned unit ranks ahead of any dependency's"
+        );
+        let a = witness_rank(false, "alib", "./x.vhd");
+        let b = witness_rank(false, "blib", "./y.vhd");
+        assert!(a < b, "equal ownership sorts by library then filepath");
     }
 }

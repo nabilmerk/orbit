@@ -43,5 +43,17 @@ grep -q "conflicts with direct dependency" combined.err || fail "expected the di
 $(cat combined.err)"
 cd ../..
 
+# --- case D: two sibling deps sharing a library and a unit name error ---
+# dep-vs-dep: the clash is LOCAL, never "direct" -- the root owns neither
+cd sibling/root
+orbit lock --force > lock.out 2> lock.err || true
+if orbit build --force --target probe --plan tsv > plan.out 2> plan.err; then
+    fail "sibling same-library duplicates should refuse, but orbit planned them"
+fi
+cat lock.err plan.err > combined.err
+grep -q "conflicts with local dependency" combined.err || fail "expected the local-dependency error for the sibling clash, got:
+$(cat combined.err)"
+cd ../..
+
 echo "TEST: RELATIVE DUPLICATES - PASS"
 exit 0

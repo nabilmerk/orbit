@@ -1084,6 +1084,20 @@ mod test {
             assert!(validate_std("").is_err());
             assert!(validate_std("93 ").is_err());
         }
+
+        #[test]
+        fn ut_std_vocabulary_rejected_through_the_load_path() {
+            // EX11 rides the REAL load path: from_file must refuse the
+            // unknown token, not just the pure validator
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join(PROJECT_MANIFEST_FILE);
+            std::fs::write(&path, EX11).unwrap();
+            let err = Manifest::from_file(&path, true).unwrap_err();
+            assert!(
+                err.to_string().contains("unknown std \"banana\""),
+                "expected the vocabulary face, got: {err}"
+            );
+        }
     }
 }
 

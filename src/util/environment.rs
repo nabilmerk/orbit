@@ -366,10 +366,18 @@ impl Environment {
             );
         }
         // the root project's declared language standard (issue #24); the
-        // swap variable `{{ orbit.std }}` derives from this key automatically
-        if let Some(std) = prj.get_man().get_project().get_std() {
-            self = self.overwrite(EnvVar::new().key(ORBIT_STD).value(std));
-        }
+        // swap variable `{{ orbit.std }}` derives from this key
+        // automatically. ALWAYS exported -- empty when undeclared -- so a
+        // stale value exported in the user's shell cannot leak into a
+        // std-less project's run (the drives treat the empty value as
+        // absent)
+        self = self.overwrite(EnvVar::new().key(ORBIT_STD).value(
+            &prj.get_man()
+                .get_project()
+                .get_std()
+                .clone()
+                .unwrap_or_default(),
+        ));
         Ok(self)
     }
 

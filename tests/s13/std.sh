@@ -31,6 +31,9 @@ orbit lock --force > lock.out 2> lock.err
 orbit build --force --target probe --plan tsv > build.out 2> build.err || fail "build failed:
 $(cat build.err)"
 awk -F '\t' 'NF != 3 { print "row with " NF " fields: " $0; bad = 1 } END { exit bad }' target/probe/blueprint.tsv || fail "a blueprint row gained a std field with no std declared"
+# the env face is ALWAYS exported: an empty ORBIT_STD clears any stale
+# exported value a shell might carry into the drive
+grep -q "^ORBIT_STD=$" target/probe/.env || fail "the std-less project should export an empty ORBIT_STD (got: $(grep ORBIT_STD target/probe/.env || echo MISSING))"
 cd ../..
 
 # --- case A2: custom-fileset rows carry the owning project's std ---
