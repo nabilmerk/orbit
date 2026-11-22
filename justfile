@@ -52,6 +52,8 @@ run-sys-tests:
     just test-partv
     just test-rel-dep
     just test-rel-dupes
+    just test-faces
+    just test-infer
     just test-sep-arch-refs
     just test-recur-filesets
     just test-custom-filesets
@@ -66,6 +68,8 @@ test-all:
     just test-partv
     just test-rel-dep
     just test-rel-dupes
+    just test-faces
+    just test-infer
     just test-sep-arch-refs
     just test-recur-filesets
     just test-custom-filesets
@@ -109,6 +113,16 @@ test-rel-dep:
 test-rel-dupes:
     chmod +x ./tests/s10/rel-dupes.sh
     cd ./tests/s10; ./rel-dupes.sh
+
+# Tool selection faces: toolchain binding, wrong-verb pick, [[target]] hint
+test-faces:
+    chmod +x ./tests/s11/faces.sh
+    cd ./tests/s11; ./faces.sh
+
+# Single-candidate target inference
+test-infer:
+    chmod +x ./tests/s12/infer.sh
+    cd ./tests/s12; ./infer.sh
 
 # TODO: Ip namespace collision 
 test-ip-collide:
