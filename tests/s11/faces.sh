@@ -35,5 +35,16 @@ grep -q "bind one per verb in a \[toolchain\] section" info.err || fail "expecte
 $(cat info.err)"
 cd ..
 
+# --- case D: a typo'd [toolchain] key is loud, never a dropped tier ---
+cd mtb
+if orbit build --list > list.out 2> list.err; then
+    fail "a malformed [toolchain] section should refuse, but orbit listed targets"
+fi
+grep -q "unknown field" list.err || fail "expected the malformed-face error, got:
+$(cat list.err)"
+grep -qi "backend" list.err || fail "the error should name the offending key, got:
+$(cat list.err)"
+cd ..
+
 echo "TEST: TARGET FACES - PASS"
 exit 0

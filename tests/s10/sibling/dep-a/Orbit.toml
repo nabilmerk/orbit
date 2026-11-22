@@ -1,0 +1,6 @@
+[project]
+name = "sib-a"
+uuid = "35xev9il8gpaacuqnn25dpvao"
+version = "0.1.0"
+library = "siblib"
+public = ["*.vhd"]

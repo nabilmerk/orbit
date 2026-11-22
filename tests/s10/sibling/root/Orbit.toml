@@ -1,0 +1,10 @@
+[project]
+name = "sib-root"
+uuid = "0jgs7eqrhgn3kd67w5ip0v42j"
+version = "0.1.0"
+library = "sibroot"
+public = ["*.vhd"]
+
+[dependencies]
+sib-a = { path = "../dep-a", version = "0.1.0", uuid = "35xev9il8gpaacuqnn25dpvao" }
+sib-b = { path = "../dep-b", version = "0.1.0", uuid = "6u7g7kv20csk2uzn7s25p5qfp" }

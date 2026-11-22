@@ -474,6 +474,9 @@ impl Context {
         is_build: bool,
     ) -> Result<Option<&Target>, Error> {
         let env_target = Environment::read(environment::ORBIT_TARGET);
+        // the face reads BEFORE the list-mode exit: a malformed section is
+        // loud even where the manifest would otherwise never load
+        let face = self.read_manifest_toolchain()?;
         // allow the list to be printed
         if target.is_none() && required == false {
             return Ok(None);
@@ -487,7 +490,7 @@ impl Context {
             target,
             env_target,
             self.get_config().get_default_target(is_build),
-            self.read_manifest_toolchain().as_ref(),
+            face.as_ref(),
             is_build,
             single_candidate.as_deref(),
         );
@@ -533,20 +536,39 @@ impl Context {
     }
 
     /// Reads the `[toolchain]` face from the current project's manifest,
-    /// if the project is discoverable and the section parses.
+    /// if the project is discoverable.
     ///
-    /// This is a light, extract-only read: the document is not fully
-    /// validated here (a broken manifest reports honestly when the
-    /// project itself loads); only the `toolchain` table is taken.
-    fn read_manifest_toolchain(&self) -> Option<crate::core::manifest::Toolchain> {
+    /// This is a light, extract-only read: the rest of the document is
+    /// not validated here (the project's own load reports it). But a
+    /// MALFORMED face is loud right here -- `--list` never loads the
+    /// manifest, so a silently dropped tier would hide a typo'd section
+    /// behind an unrelated target list.
+    fn read_manifest_toolchain(&self) -> Result<Option<crate::core::manifest::Toolchain>, Error> {
         #[derive(serde::Deserialize)]
         struct ToolchainOnly {
             #[serde(default)]
             toolchain: Option<crate::core::manifest::Toolchain>,
         }
-        let prj_path = self.get_project_path()?;
-        let text = std::fs::read_to_string(prj_path.join(crate::core::manifest::PROJECT_MANIFEST_FILE)).ok()?;
-        toml::from_str::<ToolchainOnly>(&text).ok()?.toolchain
+        let Some(prj_path) = self.get_project_path() else {
+            return Ok(None);
+        };
+        let Ok(text) =
+            std::fs::read_to_string(prj_path.join(crate::core::manifest::PROJECT_MANIFEST_FILE))
+        else {
+            // an unreadable manifest reports honestly when the project loads
+            return Ok(None);
+        };
+        toml::from_str::<ToolchainOnly>(&text)
+            .map(|face| face.toolchain)
+            .map_err(|e| {
+                Error::ManifestParseFailed(
+                    prj_path
+                        .join(crate::core::manifest::PROJECT_MANIFEST_FILE)
+                        .to_string_lossy()
+                        .to_string(),
+                    crate::error::LastError(e.to_string()),
+                )
+            })
     }
 
     pub fn get_vhdl_format(&self) -> VhdlFormat {
