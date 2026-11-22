@@ -582,7 +582,27 @@ impl Plan {
         }
 
         // collect in-order HDL file list
+        //
+        // a file a custom fileset already carried does NOT ride again as a
+        // built-in row: the probed semantics are that a custom fileset
+        // REPLACES the built-in collection for the files it matched, and a
+        // duplicate row is fatal for tools that stamp analysis time per
+        // file -- ghdl re-stamps the file's library entry on the second
+        // analysis, which obsoletes every unit that depends on it
+        // ("package "amba" is obsoleted by package "config"", probed live
+        // on the GRLIB zedboard corpus 2026-11-22)
+        let carried_by_filesets: std::collections::HashSet<String> = blueprint
+            .steps()
+            .iter()
+            .filter_map(|entry| match entry {
+                Entry::Auxiliary(_, _, file, _) => Some(file.clone()),
+                _ => None,
+            })
+            .collect();
         for ip_file_node in file_order {
+            if carried_by_filesets.contains(ip_file_node.get_file()) {
+                continue;
+            }
             blueprint.add(Entry::Hdl(ip_file_node));
         }
 
