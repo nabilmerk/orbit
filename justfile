@@ -54,6 +54,7 @@ run-sys-tests:
     just test-rel-dupes
     just test-faces
     just test-infer
+    just test-std
     just test-sep-arch-refs
     just test-recur-filesets
     just test-custom-filesets
@@ -70,6 +71,7 @@ test-all:
     just test-rel-dupes
     just test-faces
     just test-infer
+    just test-std
     just test-sep-arch-refs
     just test-recur-filesets
     just test-custom-filesets
@@ -123,6 +125,11 @@ test-faces:
 test-infer:
     chmod +x ./tests/s12/infer.sh
     cd ./tests/s12; ./infer.sh
+
+# Language std blueprint face: trailing field, json key, vocabulary check
+test-std:
+    chmod +x ./tests/s13/std.sh
+    cd ./tests/s13; ./std.sh
 
 # TODO: Ip namespace collision 
 test-ip-collide:
