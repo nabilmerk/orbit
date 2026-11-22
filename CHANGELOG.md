@@ -17,6 +17,9 @@ Add `- unreleased` along the next future version to prevent CI/CD from triggerin
 
 ## 0.29.4 - unreleased
 
+### Features
+- Adds the manifest `[toolchain]` section: bind a default target and one target per verb inside the repo, resolved above the config defaults; single-candidate targets are inferred; selecting a target that declares the other verb only dies loudly at the command line (closes #25)
+
 ### Fixes
 - Qualifies the duplicate design-unit check for relative dependencies by HDL library: cross-library duplicates through path dependencies plan and both units appear in the blueprint, while true same-library clashes refuse with the direct/local dependency messages (closes #23)
 
