@@ -308,6 +308,40 @@ impl<'a> JsonMeta<'a> {
     }
 }
 
+/// The documented language-standard vocabularies (issue #24).
+///
+/// A project's `std` token is validated against the union at manifest
+/// load; a blueprint row is validated against its language's set at
+/// emission. The drives map the token to each tool's own selector flag.
+pub const VHDL_STDS: [&str; 4] = ["87", "93", "2008", "2019"];
+pub const VERILOG_STDS: [&str; 4] = ["95", "2001", "2005", "2012"];
+pub const SV_STDS: [&str; 3] = ["2005", "2012", "2017"];
+
+/// Formats the full documented std vocabulary for error faces.
+pub fn std_vocabulary_string() -> String {
+    VHDL_STDS
+        .iter()
+        .chain(VERILOG_STDS.iter())
+        .chain(SV_STDS.iter())
+        .map(|s| String::from(*s))
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
+/// Checks a `std` token against the documented vocabulary.
+pub fn validate_std(token: &str) -> Result<(), crate::error::Error> {
+    if VHDL_STDS.contains(&token)
+        || VERILOG_STDS.contains(&token)
+        || SV_STDS.contains(&token)
+    {
+        return Ok(());
+    }
+    Err(crate::error::Error::StdVocabulary(
+        String::from(token),
+        std_vocabulary_string(),
+    ))
+}
+
 /// The per-project toolchain face: which orbit target owns each verb.
 ///
 /// Written into the project's manifest, it lets a workspace declare
@@ -403,6 +437,12 @@ impl Manifest {
             ))?;
         }
 
+        // verify the declared language standard belongs to the documented
+        // vocabulary (issue #24)
+        if let Some(std) = man.get_project().get_std() {
+            validate_std(std)?;
+        }
+
         let local_name = man.get_project().get_name().clone();
         let local_version = man.get_project().get_version().clone();
 
@@ -485,6 +525,7 @@ impl Manifest {
                 channels: None,
                 public: None,
                 library: None,
+                std: None,
                 readme: None,
                 ignore: None,
                 authors: None,
@@ -667,6 +708,10 @@ pub struct Package {
     version: ProjectVersion,
     #[serde(deserialize_with = "validate_lib_name", default)]
     library: Option<ProjectName>,
+    /// The project's language standard revision (issue #24): carried to
+    /// targets per-file in the blueprint and by the `ORBIT_STD` variable
+    #[serde(default)]
+    std: Option<String>,
     description: Option<String>,
     /// URL of the project documentation
     documentation: Option<String>,
@@ -703,6 +748,11 @@ impl Package {
 
     pub fn get_description(&self) -> &Option<String> {
         &self.description
+    }
+
+    /// Returns the project's declared language standard revision, if any.
+    pub fn get_std(&self) -> &Option<String> {
+        &self.std
     }
 
     pub fn get_documentation(&self) -> &Option<String> {
@@ -1008,6 +1058,32 @@ mod test {
         fn ut_toolchain_unknown_key_rejected() {
             assert!(toml::from_str::<Manifest>(EX9).is_err());
         }
+
+        #[test]
+        fn ut_std_deser() {
+            let man: Manifest = toml::from_str(EX10).unwrap();
+            assert_eq!(man.get_project().get_std(), &Some(String::from("2008")));
+        }
+
+        #[test]
+        fn ut_std_absent() {
+            let man: Manifest = toml::from_str(EX2).unwrap();
+            assert_eq!(man.get_project().get_std(), &None);
+        }
+
+        #[test]
+        fn ut_std_vocabulary_accepts_documented_tokens() {
+            for token in ["87", "93", "2008", "2019", "95", "2001", "2005", "2012", "2017"] {
+                assert_eq!(validate_std(token), Ok(()), "token {} should be known", token);
+            }
+        }
+
+        #[test]
+        fn ut_std_vocabulary_rejects_unknown_tokens() {
+            assert!(validate_std("banana").is_err());
+            assert!(validate_std("").is_err());
+            assert!(validate_std("93 ").is_err());
+        }
     }
 }
 
@@ -1105,4 +1181,18 @@ uuid = "0000000000000000000000000"
 
 [toolchain]
 backend = "nvc"
+"#;
+
+const EX10: &str = r#"[project]
+name = "std-prj"
+uuid = "0000000000000000000000000"
+version = "0.1.0"
+std = "2008"
+"#;
+
+const EX11: &str = r#"[project]
+name = "std-prj"
+uuid = "0000000000000000000000000"
+version = "0.1.0"
+std = "banana"
 "#;
