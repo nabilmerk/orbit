@@ -24,6 +24,7 @@ Add `- unreleased` along the next future version to prevent CI/CD from triggerin
 ### Fixes
 - Qualifies the duplicate design-unit check for relative dependencies by HDL library: cross-library duplicates through path dependencies plan and both units appear in the blueprint, while true same-library clashes refuse with the direct/local dependency messages (closes #23)
 - Stops counting a nested concurrent body's `begin` toward the primary-end nesting in the VHDL parser: architectures with processes no longer swallow the design units declared after them in the same file, so multi-unit files contribute every unit to the plan closure
+- Expands the plan closure to whole files: a file that enters the plan carries the dependencies of every design unit the file declares, so file-oriented tools (ghdl analyzes whole files) no longer refuse a planned file over a sibling unit's use-clause target that the unit-granular walk never pulled
 
 ## 0.29.3
 
