@@ -55,6 +55,7 @@ run-sys-tests:
     just test-faces
     just test-infer
     just test-std
+    just test-closure
     just test-sep-arch-refs
     just test-recur-filesets
     just test-custom-filesets
@@ -72,6 +73,7 @@ test-all:
     just test-faces
     just test-infer
     just test-std
+    just test-closure
     just test-sep-arch-refs
     just test-recur-filesets
     just test-custom-filesets
@@ -130,6 +132,11 @@ test-infer:
 test-std:
     chmod +x ./tests/s13/std.sh
     cd ./tests/s13; ./std.sh
+
+# Multi-unit file closure: units after process-bearing architectures ride the plan
+test-closure:
+    chmod +x ./tests/s14/closure.sh
+    cd ./tests/s14; ./closure.sh
 
 # TODO: Ip namespace collision 
 test-ip-collide:
