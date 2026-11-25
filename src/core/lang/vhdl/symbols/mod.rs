@@ -2989,6 +2989,15 @@ end architecture rtl;
     }
 
     #[test]
+    fn multi_dimensional_array_types_parse() {
+        // the vendor unisim_VPKG shape: unconstrained 2D/3D/4D array type
+        // declarations -- the parked unplannable finding, pinned here
+        let s = "library IEEE;\nuse IEEE.std_logic_1164.all;\npackage vpkg is\n  type slv2 is array (integer range <>, integer range <>) of std_logic;\n  type slv3 is array (integer range <>, integer range <>, integer range <>) of std_logic;\nend;\n";
+        let syms = VHDLParser::read(s).unwrap().into_symbols();
+        assert_eq!(syms.len(), 1);
+    }
+
+    #[test]
     fn test_units_after_multi_process_arch() {
         let data = std::fs::read_to_string("./tests/t5/multi_unit_proc.vhd").unwrap();
         let syms = VHDLParser::read(&data).unwrap().into_symbols();
